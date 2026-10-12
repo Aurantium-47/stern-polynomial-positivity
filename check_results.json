@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "B183_coefficients_ascending": [
+    1,
+    5,
+    9,
+    7,
+    3,
+    1
+  ],
+  "derivative_at_minus_two_thirds": "-19/81",
+  "left_value": "13/243",
+  "right_value": "122/3125",
+  "right_minus_left": "-10979/759375",
+  "quadratic_identity_finite_check": {
+    "n_min": 0,
+    "n_max": 20
+  },
+  "scope": "Finite exact checks only; see Lean for universal proofs."
+}

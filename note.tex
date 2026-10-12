@@ -1,0 +1,367 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\title{Positivity of a family of Stern polynomials\newline
+and a counterexample to monotonicity}
+\author{}
+\date{13 October 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+For the standard Stern polynomials, we prove that
+$B_{h_n}(t)>0$ for every real $t$ and every integer $n\geq0$, where
+$h_n=\frac23(2^{2n}-1)(2^{2n+1}+1)+1$.
+This proves the assertion of Conjecture~4.4 in the arXiv version of
+Ulas's \emph{Strong arithmetic property of certain Stern polynomials}.
+The proof derives from the defining recurrence a quadratic identity already
+present in that source, and completes it to a sum of squares whose terms
+cannot vanish simultaneously. We also compute $B_{183}$ and show that its
+derivative at $-2/3$ is $-19/81$. An exact two-point certificate disproves
+the final monotonicity clause of Conjecture~4.3 even on $(-1,0)$.
+The general unique-real-root clause of that conjecture is not settled here.
+A Lean~4 formalization certifies the all-parameter positivity theorem and
+the exact monotonicity counterexample from the defining recurrence.
+No claim of literature priority is made.
+\end{abstract}
+
+\section{Definitions and the statements under consideration}
+Let $\N=\{0,1,2,\ldots\}$. The Stern polynomials $B_m\in\Z[t]$ are
+defined by
+\begin{equation}\label{eq:recurrence}
+ B_0(t)=0,\qquad B_1(t)=1,\qquad
+ B_{2m}(t)=tB_m(t),\qquad
+ B_{2m+1}(t)=B_m(t)+B_{m+1}(t).
+\end{equation}
+The recurrence determines the polynomials when used for $m\geq1$;
+both displayed identities remain valid for $m=0$.
+This is the standard definition introduced by Klav\v{z}ar,
+Milutinovi\'{c}, and Petr~\cite{KMP}, and is the definition in the body
+of Ulas's paper~\cite[p.~2]{Ulas}. The odd-index formula in that paper's
+abstract contains a different subscript; the present note uses the body
+of the paper and \eqref{eq:recurrence}.
+
+The sequence in Conjecture~4.4 of~\cite[p.~16]{Ulas} is
+\begin{equation}\label{eq:h}
+ h_n=\frac23(2^{2n}-1)(2^{2n+1}+1)+1\qquad(n\in\N).
+\end{equation}
+This is an integer sequence: if $K=4^n$ and $a=(K-1)/3$, then
+$K\equiv1\pmod3$, $a\in\N$, and
+\begin{equation}\label{eq:indices}
+ K=3a+1,\qquad h_n=2a(2K+1)+1=4Ka+2a+1.
+\end{equation}
+In particular $h_0=1$, $h_1=19$, and $h_2=331$.
+We will prove the stronger form of the conjectured absence of real roots:
+\begin{equation}\label{eq:positive-goal}
+ B_{h_n}(t)>0\qquad(n\in\N,\ t\in\R).
+\end{equation}
+
+For the monotonicity question, the family in~\cite[Theorem~2.6]{Ulas} is
+\begin{equation}\label{eq:s}
+ s_{0,n}=2^{2n+4}-9\cdot2^{n+1}-1\qquad(n\geq1).
+\end{equation}
+The last clause of Conjecture~4.3, numbered ``(3)'' again in the source,
+asserts that $t\mapsto B_{s_{0,n}}(t)$ is increasing on $\R$.
+The value $n=2$ lies in the range $n\geq2$ used for the first clause,
+as well as in the positive-index range of the family. Thus it supplies
+a counterexample under either of these index conventions.
+
+\section{Two consequences of the defining recurrence}
+
+\begin{lemma}[Concatenation identity]\label{lem:concat}
+For integers $m,r,s\geq0$ with $s\leq2^r$, the following identity holds
+in $\Z[t]$:
+\begin{equation}\label{eq:concat}
+ B_{m2^r+s}=B_{2^r-s}B_m+B_sB_{m+1}.
+\end{equation}
+All polynomials on the right have the same variable $t$.
+\end{lemma}
+\begin{proof}
+We induct on $r$. If $r=0$, then $s=0$ or $s=1$;
+the assertion follows from $B_0=0$ and $B_1=1$.
+Suppose the result holds for $r$ and put $K=2^r$.
+For an even remainder $s=2u$, where $0\leq u\leq K$, the induction
+hypothesis and the even recurrence give
+\begin{align*}
+ B_{2mK+2u}
+ &=t(B_{K-u}B_m+B_uB_{m+1})\\
+ &=B_{2K-2u}B_m+B_{2u}B_{m+1}.
+\end{align*}
+For an odd remainder $s=2u+1\leq2K$, we have $0\leq u<K$.
+Both $u$ and $u+1$ are admissible remainders at level $r$.
+Consequently,
+\begin{align*}
+ B_{2mK+2u+1}
+ &=B_{mK+u}+B_{mK+u+1}\\
+ &=(B_{K-u}+B_{K-u-1})B_m+(B_u+B_{u+1})B_{m+1}\\
+ &=B_{2K-2u-1}B_m+B_{2u+1}B_{m+1}.
+\end{align*}
+Here $K-u-1\geq0$, so the last use of the odd recurrence is legitimate.
+This proves the induction step, including both endpoints of the range.
+\end{proof}
+
+\begin{lemma}[Adjacent values]\label{lem:adjacent}
+If $t\in\R\setminus\{0\}$ and $m\in\N$, then
+$(B_m(t),B_{m+1}(t))\neq(0,0)$. At $t=0$, every odd-indexed Stern
+polynomial has value $1$.
+\end{lemma}
+\begin{proof}
+Write $v_m=(B_m(t),B_{m+1}(t))^{\mathsf T}$. The recurrence gives
+\begin{equation}\label{eq:pairs}
+ v_{2m}=\begin{pmatrix}t&0\\1&1\end{pmatrix}v_m,
+ \qquad
+ v_{2m+1}=\begin{pmatrix}1&1\\0&t\end{pmatrix}v_m.
+\end{equation}
+For $t\neq0$, both matrices have nonzero determinant $t$ and hence
+preserve the property of being a nonzero vector. Starting from
+$v_0=(0,1)^{\mathsf T}$, strong induction on the index proves the
+first assertion: for every positive index, its parent $\lfloor m/2\rfloor$
+is smaller.
+
+At $t=0$, the two transformations in \eqref{eq:pairs} take a pair
+$(x,y)$ with $x+y=1$ to $(0,1)$ or $(1,0)$, respectively.
+The initial pair has sum $1$, so the same induction shows that
+$B_m(0)+B_{m+1}(0)=1$ for every $m$. The odd recurrence now gives
+$B_{2m+1}(0)=1$.
+\end{proof}
+
+\section{The quadratic identity and strict positivity}
+
+\begin{proposition}\label{prop:quadratic}
+For $n\in\N$, let $a=(4^n-1)/3$, $A=B_a(t)$ and $C=B_{a+1}(t)$.
+Then
+\begin{equation}\label{eq:quadratic}
+ B_{h_n}(t)=(t^2+t+1)A^2+(t+2)AC+C^2.
+\end{equation}
+\end{proposition}
+\begin{proof}
+Set $K=4^n=3a+1$. Since $2a+1\leq K\leq4K$ and
+$4K=2^{2n+2}$, Lemma~\ref{lem:concat} applied to
+$h_n=a(4K)+(2a+1)$ gives
+\begin{equation}\label{eq:firstsplit}
+ B_{h_n}=B_{4K-2a-1}A+B_{2a+1}C.
+\end{equation}
+The second coefficient is $B_{2a+1}=A+C$. To compute the first,
+the odd recurrence gives
+\[
+ B_{4K-2a-1}=B_{2K-a-1}+B_{2K-a}.
+\]
+We have $K-a-1=2a$ and $K-a=2a+1$. Applying
+Lemma~\ref{lem:concat} with $m=1$, $2^r=K$, and remainders
+$2a$ and $2a+1$, which both lie in $[0,K]$, yields
+\begin{align*}
+ B_{2K-a-1}
+ &=B_{K+2a}=B_{K-2a}B_1+B_{2a}B_2
+   =C+t^2A,\\
+ B_{2K-a}
+ &=B_{K+2a+1}=B_{K-2a-1}B_1+B_{2a+1}B_2
+   =A+t(A+C).
+\end{align*}
+Substitution in \eqref{eq:firstsplit} proves \eqref{eq:quadratic}.
+The calculations also apply when $n=0$, for which $K=1$ and $a=0$.
+\end{proof}
+
+\begin{remark}[Attribution]
+Ulas already gives identity \eqref{eq:quadratic} in the proof of
+Theorem~3.1~\cite[p.~13]{Ulas}. No novelty is claimed for that identity.
+The derivation above makes the
+dependence on the original index sequence and defining recurrence
+explicit. It does not use the subsequent displayed substitution or
+initial values in that source.
+\end{remark}
+
+\begin{theorem}\label{thm:positivity}
+For every $n\in\N$ and every $t\in\R$, $B_{h_n}(t)>0$.
+In particular $B_{h_n}$ has no real root.
+\end{theorem}
+\begin{proof}
+Completing the square in \eqref{eq:quadratic} gives
+\begin{equation}\label{eq:sos}
+ 4B_{h_n}(t)=\bigl(2C+(t+2)A\bigr)^2+3t^2A^2.
+\end{equation}
+Both terms on the right are nonnegative. If $t\neq0$ and their
+sum were zero, then $3t^2A^2=0$ would imply $A=0$. The other
+square would then imply $C=0$. This contradicts
+Lemma~\ref{lem:adjacent} for the adjacent indices $a,a+1$.
+Thus $B_{h_n}(t)>0$ for $t\neq0$.
+
+When $t=0$, formula \eqref{eq:indices} shows that $h_n$ is odd,
+so Lemma~\ref{lem:adjacent} gives $B_{h_n}(0)=1$.
+In particular the endpoint $n=0$ is covered: $h_0=1$ and
+$B_{h_0}(t)=1$ for all $t$.
+\end{proof}
+
+\section{An exact failure of monotonicity}
+
+\begin{proposition}\label{prop:counterexample}
+For the sequence \eqref{eq:s}, $s_{0,2}=183$ and
+\begin{equation}\label{eq:P}
+ P(t):=B_{183}(t)=t^5+3t^4+7t^3+9t^2+5t+1.
+\end{equation}
+Moreover,
+\begin{equation}\label{eq:derivative}
+ P'(-2/3)=-19/81<0.
+\end{equation}
+The function $P$ is neither nondecreasing nor strictly increasing on
+$(-1,0)$, and hence has neither property on $\R$.
+\end{proposition}
+\begin{proof}
+First $s_{0,2}=2^8-9\cdot2^3-1=183$. For transparency, the
+following intermediate values follow from \eqref{eq:recurrence}:
+\begin{align*}
+ B_5&=1+2t, & B_6&=t+t^2,\\
+ B_{11}&=1+3t+t^2, & B_{12}&=t^2+t^3,\\
+ B_{22}&=t+3t^2+t^3, & B_{23}&=1+3t+2t^2+t^3,\\
+ B_{45}&=1+4t+5t^2+2t^3, & B_{46}&=t+3t^2+2t^3+t^4,\\
+ B_{91}&=1+5t+8t^2+4t^3+t^4,
+ & B_{92}&=t^2+3t^3+2t^4+t^5.
+\end{align*}
+Since $B_{183}=B_{91}+B_{92}$, these give \eqref{eq:P}.
+Differentiating,
+\[
+ P'(t)=5t^4+12t^3+21t^2+18t+5,
+\]
+and exact substitution gives \eqref{eq:derivative}. Continuity of
+$P'$ gives an interval around $-2/3$, contained in $(-1,0)$,
+on which $P'<0$. The mean value theorem therefore gives strict
+decrease on that interval.
+
+There is also a certificate using only rational arithmetic:
+\begin{gather*}
+ -1<-\frac23<-\frac35<0,\qquad
+ P(-2/3)=\frac{13}{243},\qquad P(-3/5)=\frac{122}{3125},\\
+ P(-3/5)-P(-2/3)=-\frac{10979}{759375}<0.
+\end{gather*}
+These two points directly contradict both meanings of increasing
+specified in the statement.
+\end{proof}
+
+\begin{proposition}\label{prop:root}
+The polynomial $B_{183}$ has exactly one real root, namely $-1$,
+and that root is simple.
+\end{proposition}
+\begin{proof}
+Expansion verifies the identity
+\[
+ P(t)=(t+1)\left([t(t+1)]^2+(2t+1)^2\right).
+\]
+The first square can vanish only at $0$ or $-1$, whereas the second
+can vanish only at $-1/2$. Their sum is therefore strictly positive
+on $\R$. This proves that $P(t)=0$ precisely when $t=-1$.
+The factor in parentheses has value $1$ at $-1$, so the root is simple.
+\end{proof}
+
+Proposition~\ref{prop:root} prevents a possible misinterpretation of the
+counterexample: the failure of monotonicity does not refute the
+unique-real-root clause of Conjecture~4.3. No assertion for the general
+parameters of that clause is proved here. Finite root counts do not
+establish that general assertion.
+
+\section{Formal verification and reproducibility}
+The accompanying project has been checked using Lean~4.19.0 and
+mathlib~4.19.0. It defines a real-valued function $B$ recursively and
+proves the standard recurrence. The theorem
+\path{Stern.B_integer_polynomial} constructs, for every index,
+an integer polynomial whose real evaluation is $B$.
+The formal identities are pointwise equalities of real-valued functions;
+the project does not separately construct a canonical sequence of objects
+in $\Z[X]$ and prove coefficient equalities between those objects.
+
+The source index is defined using the explicit formula
+\eqref{eq:h}, with natural-number division.
+\path{Stern.h_source_exact} proves that its rational value is
+exactly \eqref{eq:h}; thus integer truncation does not alter the sequence.
+The recurrence leads to the concatenation and adjacent-value lemmas,
+then to \path{Stern.h_quadratic} and
+\path{Stern.h_sum_of_squares}.
+The principal theorem is
+\[
+\texttt{Stern.h\_positive}:
+\qquad \forall n\in\N\;\forall t\in\R,\quad 0<B_{h_n}(t).
+\]
+Its zero-parameter case and absence-of-real-roots corollary are also
+checked as \path{Stern.h_at_zero} and
+\path{Stern.h_no_real_root}.
+
+The counterexample file checks the recurrence computation
+\path{Stern.B183_explicit}, the derivative formula, and
+\path{Stern.B183_deriv_neg_two_thirds}.
+It connects the negative derivative directly to
+\path{Stern.B183_not_monotoneOn} on $(-1,0)$ by showing that a
+nondecreasing function's right-hand slopes cannot have a negative limit.
+Failure of strict increase and of global increase are also checked,
+as are the original-family specialization $s_{0,2}=183$ and the exact
+two-point certificate \path{Stern.B183_two_point_certificate}.
+Finally, \path{Stern.B183_zero_iff} proves that a real zero is
+exactly $-1$, using the verified factorization and positive quotient.
+The theorem \path{Stern.B183_deriv_neg_one} also checks $P'(-1)=1$.
+The elementary simplicity argument in Proposition~\ref{prop:root}
+is not separately encoded as a polynomial-root multiplicity theorem.
+
+All five library modules, their aggregate module, and the axiom audit
+compiled successfully. No admitted proof or additional axiom is used.
+The printed axiom dependencies are subsets of the standard Lean
+dependencies \texttt{propext}, \texttt{Classical.choice}, and
+\texttt{Quot.sound}. Exact theorem statements, the tested commands,
+and their outputs are recorded in \texttt{STATUS.md}, \texttt{BUILD.log},
+and \texttt{AXIOMS.log}. The local build used the installed toolchain
+and existing mathlib dependencies; a fresh network download of those
+dependencies was not tested.
+The supplementary Python checker uses exact arithmetic for finite
+checks, including $0\leq n\leq20$. Neither the natural-language proof
+nor the formal all-parameter theorem depends on those finite tests.
+
+\section{Sources, priority, and assistance}
+The conjecture statements and the quadratic identity were checked against
+the 17-page arXiv version~\cite{Ulas}. The journal publication metadata
+are supplied in the bibliography, but access to its full text was
+restricted; page-by-page agreement with the journal version is not
+asserted. The accessible paper by Altizio~\cite{AltizioPaper} was also
+examined. Its stated results on zero-free complex regions and
+prime-index irreducibility do not by themselves establish the results
+proved here. The official record for Altizio's 2025 doctoral
+thesis~\cite{AltizioThesis} was available, but the thesis full text
+could not be accessed. Its coverage of the present questions is
+therefore undetermined. The literature search is not exhaustive, and
+this note does not assert that these conclusions are the first published
+resolutions. This work was prepared with AI assistance; no claim of
+human expert peer review is made.
+
+\begin{thebibliography}{9}
+\bibitem{KMP}
+S.~Klav\v{z}ar, U.~Milutinovi\'{c}, and C.~Petr,
+\emph{Stern polynomials}, Advances in Applied Mathematics
+\textbf{39} (2007), 86--95.
+
+\bibitem{Ulas}
+M.~Ulas, \emph{Strong arithmetic property of certain Stern polynomials},
+arXiv:1909.10844v1 (2019),
+\url{https://arxiv.org/abs/1909.10844v1}.
+Published in Publicationes Mathematicae Debrecen
+\textbf{96} (3--4) (2020), 401--422,
+\href{https://doi.org/10.5486/PMD.2020.8683}{doi:10.5486/PMD.2020.8683}.
+Page references in this note are to the arXiv version.
+
+\bibitem{AltizioPaper}
+D.~Altizio, \emph{Zeros of Stern polynomials in the complex plane},
+arXiv:2511.03847v1 (2025),
+\url{https://arxiv.org/abs/2511.03847v1}.
+
+\bibitem{AltizioThesis}
+D.~Altizio, \emph{On Stern polynomials and their zeroes},
+Ph.D. thesis, University of Illinois Urbana-Champaign, 2025.
+Official record: \url{https://www.ideals.illinois.edu/items/136452}.
+Metadata consulted; full text unavailable for this note.
+\end{thebibliography}
+\end{document}
