@@ -62,6 +62,16 @@ jobs:
               actual = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
               assert actual == p['rev']
               print('DEPENDENCY', p['name'], actual)
+              if p['name'] == 'proofwidgets':
+                  subprocess.run(['git', '-C', str(target), 'fetch', '--depth', '1', 'origin',
+                                  'refs/tags/v0.0.57:refs/tags/v0.0.57'], check=True)
+                  release_commit = subprocess.check_output(
+                      ['git', '-C', str(target), 'rev-parse', 'v0.0.57^{commit}'], text=True).strip()
+                  assert release_commit == p['rev']
+                  release_tag = subprocess.check_output(
+                      ['git', '-C', str(target), 'describe', '--tags', '--exact-match', 'HEAD'], text=True).strip()
+                  assert release_tag == 'v0.0.57'
+                  print('RELEASE_TAG', p['name'], release_tag, release_commit)
           # Keep all downloaded files: disable only the upstream cache helper's directory pruning.
           helper = root / '.lake/packages/mathlib/Cache/Requests.lean'
           text = helper.read_text()
