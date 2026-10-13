@@ -1,0 +1,164 @@
+name: Lean 4.19.0 source audit
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  source-audit:
+    if: github.event.repository.private == false && github.repository == 'Aurantium-47/stern-polynomial-positivity'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      LEAN_NUM_THREADS: '1'
+      MATHLIB_NO_CACHE_ON_UPDATE: '1'
+    steps:
+      - name: Fetch the fixed public source and Lean release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e public-source
+          git init public-source
+          git -C public-source remote add origin https://github.com/Aurantium-47/stern-polynomial-positivity.git
+          git -C public-source fetch --depth 1 origin f77e877ce92d7d81c69d025624696363a09a813f
+          git -C public-source checkout --detach FETCH_HEAD
+          test "$(git -C public-source rev-parse HEAD)" = f77e877ce92d7d81c69d025624696363a09a813f
+          test "$(tr -d '\r\n' < public-source/lean/lean-toolchain)" = leanprover/lean4:v4.19.0
+          curl --fail --location --retry 3 https://github.com/leanprover/lean4/releases/download/v4.19.0/lean-4.19.0-linux.tar.zst --output lean-4.19.0-linux.tar.zst
+          sha256sum lean-4.19.0-linux.tar.zst
+          tar --zstd -xf lean-4.19.0-linux.tar.zst
+          "$PWD/lean-4.19.0-linux/bin/lean" --version
+          "$PWD/lean-4.19.0-linux/bin/lean" --version | grep -F '4.19.0'
+          "$PWD/lean-4.19.0-linux/bin/lean" --version | grep -F '6caaee842e94'
+          sha256sum lean-4.19.0-linux/bin/lean lean-4.19.0-linux/bin/lake
+          printf '%s\n' "$PWD/lean-4.19.0-linux/bin" >> "$GITHUB_PATH"
+          printf 'LEAN_SYSROOT=%s\n' "$PWD/lean-4.19.0-linux" >> "$GITHUB_ENV"
+          free -h
+          df -h .
+
+      - name: Fetch exact dependency revisions without updating the manifest
+        working-directory: public-source/lean
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess
+          root = pathlib.Path.cwd()
+          manifest = root / 'lake-manifest.json'
+          print('MANIFEST_SHA256', hashlib.sha256(manifest.read_bytes()).hexdigest())
+          packages = json.loads(manifest.read_text())['packages']
+          assert len(packages) == 9
+          assert next(p for p in packages if p['name'] == 'mathlib')['rev'] == 'c44e0c8ee63ca166450922a373c7409c5d26b00b'
+          for p in packages:
+              assert p['type'] == 'git' and p['url'].startswith('https://github.com/')
+              target = root / '.lake/packages' / p['name']
+              assert not target.exists()
+              target.mkdir(parents=True)
+              subprocess.run(['git', 'init', str(target)], check=True)
+              subprocess.run(['git', '-C', str(target), 'remote', 'add', 'origin', p['url']], check=True)
+              subprocess.run(['git', '-C', str(target), 'fetch', '--depth', '1', 'origin', p['rev']], check=True)
+              subprocess.run(['git', '-C', str(target), 'checkout', '--detach', 'FETCH_HEAD'], check=True)
+              actual = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
+              assert actual == p['rev']
+              print('DEPENDENCY', p['name'], actual)
+          # Keep all downloaded files: disable only the upstream cache helper's directory pruning.
+          helper = root / '.lake/packages/mathlib/Cache/Requests.lean'
+          text = helper.read_text()
+          for old in ['IO.FS.removeDirAll (buildDir / "lib")', 'IO.FS.removeDirAll (buildDir / "ir")']:
+              assert text.count(old) == 1
+              text = text.replace(old, 'pure ()')
+          helper.write_text(text)
+          print('CACHE_HELPER_PATCH_SHA256', hashlib.sha256(helper.read_bytes()).hexdigest())
+          subprocess.run(['git', '-C', str(helper.parents[1]), 'diff', '--', 'Cache/Requests.lean'], check=True)
+          PY
+
+      - name: Obtain precompiled dependencies for the explicit import roots
+        working-directory: public-source/lean
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake exe cache get Mathlib.Data.Real.Basic Mathlib.Tactic.Ring Mathlib.Tactic.NormNum Mathlib.Tactic.Linarith Mathlib.Tactic.Push Mathlib.Data.Rat.Cast.Order Mathlib.Algebra.Polynomial.Eval.Defs Mathlib.Analysis.Calculus.Deriv.Add Mathlib.Analysis.Calculus.Deriv.Pow Mathlib.Analysis.Calculus.Deriv.Slope
+          git diff --exit-code -- lake-manifest.json lean-toolchain lakefile.toml
+          printf '%s\n' 'TRUST BOUNDARY: external dependency olean files are downloaded caches; they are not source-rebuilt or kernel-replayed by this job.'
+
+      - name: Rebuild every local source and print complete types and axioms
+        working-directory: public-source/lean
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          root = pathlib.Path.cwd()
+          own = ['Stern.Basic', 'Stern.Index', 'Stern.Polynomial', 'Stern.Positivity', 'Stern.Counterexample', 'Stern', 'Audit']
+          output = root / 'fresh-audit'
+          assert not output.exists()
+          (output / 'lib/Stern').mkdir(parents=True)
+          libraries = [output / 'lib']
+          packages = json.loads((root / 'lake-manifest.json').read_text())['packages']
+          for p in packages:
+              package = root / '.lake/packages' / p['name']
+              actual = subprocess.check_output(['git', '-C', str(package), 'rev-parse', 'HEAD'], text=True).strip()
+              assert actual == p['rev']
+              tracked = subprocess.check_output(['git', '-C', str(package), 'status', '--porcelain=v1', '--untracked-files=no'], text=True).strip()
+              assert not tracked or (p['name'] == 'mathlib' and tracked == 'M Cache/Requests.lean'), tracked
+              library = package / '.lake/build/lib/lean'
+              if library.is_dir():
+                  assert not (library / 'Stern').exists() and not (library / 'Stern.olean').exists()
+                  libraries.append(library)
+              else:
+                  assert p['name'] == 'Cli'
+          builtins = pathlib.Path(os.environ['LEAN_SYSROOT']) / 'lib/lean'
+          assert not (builtins / 'Stern').exists() and not (builtins / 'Stern.olean').exists()
+          env = dict(os.environ, LEAN_PATH=os.pathsep.join(map(str, libraries)), LEAN_NUM_THREADS='1')
+          print('LEAN_PATH', env['LEAN_PATH'], flush=True)
+          lean = str(pathlib.Path(os.environ['LEAN_SYSROOT']) / 'bin/lean')
+          def run(args, log):
+              print('COMMAND', args, flush=True)
+              with (output / log).open('wb') as stream:
+                  result = subprocess.run(args, cwd=root, env=env, stdout=stream, stderr=subprocess.STDOUT, timeout=900)
+              print((output / log).read_text(errors='replace'), flush=True)
+              print('EXIT', result.returncode, flush=True)
+              assert result.returncode == 0
+          original = {}
+          for name in own:
+              source = root / (name.replace('.', '/') + '.lean')
+              target = output / 'lib' / (name.replace('.', '/') + '.olean')
+              original[str(source)] = hashlib.sha256(source.read_bytes()).hexdigest()
+              run(['/usr/bin/time', '-v', lean, '-j', '1', '-s', '131072', '-DwarningAsError=true', '-o', str(target), str(source)], name + '.log')
+              assert target.is_file()
+              print('SOURCE_SHA256', name, original[str(source)], 'OLEAN_SHA256', hashlib.sha256(target.read_bytes()).hexdigest(), flush=True)
+          names = re.findall(r'^#print axioms (Stern\.\w+)', (root / 'Audit.lean').read_text(), re.M)
+          assert len(names) == len(set(names)) == 39
+          probe = root / 'FreshSternAudit.lean'
+          assert not probe.exists()
+          text = '\n'.join('import ' + n for n in own if n != 'Audit')
+          text += '\nset_option pp.all true\n#print Stern.B\n#print Stern.a\n#print Stern.h\n#print Stern.s0\n'
+          text += '\n'.join('#check @' + n + '\n#print axioms ' + n for n in names) + '\n'
+          probe.write_text(text)
+          print('PROBE_SHA256', hashlib.sha256(probe.read_bytes()).hexdigest(), flush=True)
+          run([lean, '--deps', str(probe)], 'actual-imports.log')
+          deps = {pathlib.Path(s.strip()).resolve() for s in (output / 'actual-imports.log').read_text().splitlines() if s.strip()}
+          for name in own:
+              if name != 'Audit':
+                  assert (output / 'lib' / (name.replace('.', '/') + '.olean')).resolve() in deps
+          run(['/usr/bin/time', '-v', lean, '-j', '1', '-s', '131072', '-DwarningAsError=true', '-o', str(output / 'lib/FreshSternAudit.olean'), str(probe)], 'complete-types-axioms.log')
+          observed = {}
+          for name, axioms in re.findall(r"^'([^']+)' depends on axioms: \[([^\]]*)\]", (output / 'complete-types-axioms.log').read_text(), re.M):
+              observed[name] = {a.strip() for a in axioms.split(',') if a.strip()}
+          for name in re.findall(r"^'([^']+)' does not depend on any axioms", (output / 'complete-types-axioms.log').read_text(), re.M):
+              observed[name] = set()
+          assert set(observed) == set(names)
+          assert all(a <= {'propext', 'Classical.choice', 'Quot.sound'} for a in observed.values())
+          assert all(hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() == digest for p, digest in original.items())
+          subprocess.run(['git', 'diff', '--exit-code', '--', 'Stern.lean', 'Stern', 'Audit.lean', 'lake-manifest.json', 'lean-toolchain', 'lakefile.toml'], check=True)
+          print('PASS: seven local source files freshly compiled; six library imports resolved to fresh outputs; 39 complete signatures and standard-axiom results printed.', flush=True)
+          print('NOT PERFORMED: dependency source rebuild, fresh kernel replay, independent-kernel check, literature priority review.', flush=True)
+          PY
+
+      - name: Final runner resources
+        if: always()
+        shell: bash
+        run: |
+          free -h
+          df -h .
